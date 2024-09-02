@@ -19,3 +19,5 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       - name: Install NPM dependencies
         run: npm install
+      - name: Install Trivy
+        run: trivy fs . > trivyfs.txt
