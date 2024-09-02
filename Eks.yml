@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-
+      
 jobs:
   build-analyze-scan:
     name: Build
@@ -14,49 +14,50 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-
+          
       - name: Build and analyze with SonarQube
         uses: sonarsource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
           
-      - name: npm install dependency
+      - name: Install NPM dependencies
         run: npm install
-
-      - name: Trivy file scan
+        
+      - name: Install Trivy
         run: trivy fs . > trivyfs.txt
-
-      - name: Docker Build and push
+        
+      - name: Docker build and push
         run: |
+          # Run commands to build and push Docker images
           docker build -t tic-tac-toe .
-          docker tag tic-tac-toe sevenajay/tic-tac-toe:latest
+          docker tag tic-tac-toe onyima101/tic-tac-toe:latest
           docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
-          docker push sevenajay/tic-tac-toe:latest
+          docker push onyima101/tic-tac-toe:latest
         env:
           DOCKER_CLI_ACI: 1
-
+          
       - name: Image scan
-        run: trivy image sevenajay/tic-tac-toe:latest > trivyimage.txt
+        run: trivy image onyima101/tic-tac-toe:latest > trivyimage.txt          
 
   deploy:
    needs: build-analyze-scan   
    runs-on: [self-hosted]
    steps:
       - name: docker pull image
-        run: docker pull sevenajay/tic-tac-toe:latest
+        run: docker pull onyima101/tic-tac-toe:latest
 
       - name: Image scan
         run: trivy image sevenajay/tic-tac-toe:latest > trivyimagedeploy.txt  
   
       - name: Deploy to container
-        run: docker run -d --name game -p 3000:3000 sevenajay/tic-tac-toe:latest
-
+        run: docker run -d --name game -p 3000:3000 onyima101/tic-tac-toe:latest
+        
       - name: Update kubeconfig
-        run: aws eks --region ap-south-1 update-kubeconfig --name EKS_CLOUD
+        run: aws eks --region us-east-2 update-kubeconfig --name EKS_CLOUD
 
       - name: Deploy to kubernetes
-        run: kubectl apply -f deployment-service.yml
+        run: kubectl delete -f deployment-service.yml
   
       - name: Send a Slack Notification
         if: always()
@@ -64,9 +65,6 @@ jobs:
         with:
           status: ${{ job.status }}
           steps: ${{ toJson(steps) }}
-          channel: '#githubactions-eks'
+          channel: '#githubactions'
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-  
-
-        
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}        
